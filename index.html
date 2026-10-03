@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send a query</title>
+<style>
+  :root { --ink:#1d2433; --muted:#5d6678; --line:#d5dae3; --bg:#f3f5f9; --card:#fff; --accent:#2f5bd8; --ok:#1b7f4b; --err:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); display:flex; justify-content:center; padding:32px 16px; }
+  form { width:100%; max-width:520px; background:var(--card); padding:28px; border:1px solid var(--line); border-radius:10px; }
+  h1 { margin:0 0 4px; font-size:1.5rem; }
+  p.sub { margin:0 0 20px; color:var(--muted); }
+  label { display:block; font-weight:600; font-size:.9rem; margin:14px 0 6px; }
+  input, textarea { width:100%; padding:10px 12px; font:inherit; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink); }
+  input:focus, textarea:focus, button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  textarea { min-height:120px; resize:vertical; }
+  button { margin-top:20px; width:100%; padding:12px; font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:6px; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  #status { margin-top:14px; font-size:.95rem; min-height:1.2em; }
+  #status.ok { color:var(--ok); } #status.err { color:var(--err); }
+</style>
+</head>
+<body>
+<form id="queryForm" novalidate>
+  <h1>Send us your query</h1>
+  <p class="sub">We save every message and reply by email.</p>
+
+  <label for="name">Name</label>
+  <input id="name" name="name" required autocomplete="name">
+
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" required autocomplete="email">
+
+  <label for="phone">Phone (optional)</label>
+  <input id="phone" name="phone" type="tel" autocomplete="tel">
+
+  <label for="subject">Subject</label>
+  <input id="subject" name="subject">
+
+  <label for="message">Message</label>
+  <textarea id="message" name="message" required></textarea>
+
+  <button type="submit" id="submitBtn">Send query</button>
+  <div id="status" role="status" aria-live="polite"></div>
+</form>
+
+<script>
+  // Same origin on Vercel, so a relative URL works.
+  const API_URL = "/api/queries";
+
+  const form = document.getElementById("queryForm");
+  const btn = document.getElementById("submitBtn");
+  const statusEl = document.getElementById("status");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    statusEl.className = ""; statusEl.textContent = "";
+
+    if (!form.checkValidity()) {
+      statusEl.className = "err";
+      statusEl.textContent = "Enter your name, a valid email and a message.";
+      return;
+    }
+
+    const payload = Object.fromEntries(new FormData(form).entries());
+    btn.disabled = true; btn.textContent = "Sending...";
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (_) {}
+      if (!res.ok) throw new Error(data.error || `Server returned ${res.status}.`);
+
+      statusEl.className = "ok";
+      statusEl.textContent = "Query sent. We'll get back to you soon.";
+      form.reset();
+    } catch (err) {
+      statusEl.className = "err";
+      statusEl.textContent = "Could not send your query: " + err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Send query";
+    }
+  });
+</script>
+</body>
+</html>
